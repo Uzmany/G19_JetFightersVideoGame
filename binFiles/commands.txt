@@ -1,0 +1,8 @@
+//BIG PLANE MEMORY INIT
+cd W:/DEMO; targets 3; dow -data gamemenu_new1.bin 0x87000000; dow -data mario.bin 0x83000000 ;dow -data only-exhaust-normal.bin 0x87C00000; dow -data only-exhaust-extended.bin 0x87D00000; dow -data exhaust-normal.bin 0x87E00000; dow -data exhaust-extended.bin 0x87F00000;
+
+
+
+
+//SMALL PLANE MEMORY INIT
+dow -data small-plane-exhaust-normal.bin 0x85A00000; dow -data small-plane-exhaust-extended.bin 0x85000000;

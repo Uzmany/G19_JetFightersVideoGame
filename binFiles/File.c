@@ -1,0 +1,1033 @@
+//cd W:/DEMO; targets 3; dow -data gamemenu_new1.bin 0x87000000; dow -data mario.bin 0x83000000 ;dow -data only-exhaust-normal.bin 0x87C00000; dow -data only-exhaust-extended.bin 0x87D00000; dow -data exhaust-normal.bin 0x87E00000; dow -data exhaust-extended.bin 0x87F00000;
+
+/******************************************************************************
+* Copyright (C) 2002 - 2015 Xilinx, Inc.  All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* Use of the Software is limited solely to applications:
+* (a) running on a Xilinx device, or
+* (b) that interact with a Xilinx device through a bus or interconnect.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+* XILINX  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+* Except as contained in this notice, the name of the Xilinx shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Xilinx.
+*
+******************************************************************************/
+/******************************************************************************/
+
+/**
+*
+* @file xuartlite_intr_example.c
+*
+* This file contains a design example using the UartLite driver (XUartLite) and
+* hardware device using the interrupt mode.
+*
+* @note
+*
+* The user must provide a physical loopback such that data which is
+* transmitted will be received.
+*
+* MODIFICATION HISTORY:
+* <pre>
+* Ver   Who  Date     Changes
+* ----- ---- -------- -----------------------------------------------
+* 1.00a jhl  02/13/02 First release
+* 1.00b rpm  10/01/03 Made XIntc declaration global
+* 1.00b sv   06/09/05 Minor changes to comply to Doxygen and coding guidelines
+* 2.00a ktn  10/20/09 Updated to use HAL Processor APIs and minor changes
+*      for coding guidelnes.
+* </pre>
+******************************************************************************/
+/***************************** Include Files *********************************/
+
+#include "xparameters.h"
+#include "xuartlite.h"
+#include "xintc.h"
+#include "xil_exception.h"
+#include "xil_printf.h"
+#include "game_engine.h"
+
+
+
+/************************** Constant Definitions *****************************/
+
+/*
+ * The following constants map to the XPAR parameters created in the
+ * xparameters.h file. They are defined here such that a user can easily
+ * change all the needed parameters in one place.
+ */
+
+#define UARTLITE_DEVICE_ID_2      XPAR_UARTLITE_1_DEVICE_ID
+#define INTC_DEVICE_ID          XPAR_INTC_0_DEVICE_ID
+#define UARTLITE_INT_IRQ_ID_2     XPAR_INTC_0_UARTLITE_1_VEC_ID
+#define UARTLITE_DEVICE_ID_1      XPAR_UARTLITE_2_DEVICE_ID
+#define INTC_DEVICE_ID          XPAR_INTC_0_DEVICE_ID
+#define UARTLITE_INT_IRQ_ID_1     XPAR_INTC_0_UARTLITE_2_VEC_ID
+
+/*
+ * The following constant controls the length of the buffers to be sent
+ * and received with the UartLite device.
+ */
+
+#define TEST_BUFFER_SIZE        9
+
+/**************************** Type Definitions *******************************/
+
+/***************** Macros (Inline Functions) Definitions *********************/
+
+/************************** Function Prototypes ******************************/
+
+int UartLiteIntrExample(u16 DeviceId_1, u16 DeviceId_2);
+int SetupInterruptSystem(XUartLite *UartLitePtr, XUartLite *UartLitePtr2);
+void SendHandler(void *CallBackRef, unsigned int EventData);
+void RecvHandler(void *CallBackRef, unsigned int EventData);
+void RecvHandler2(void *CallBackRef, unsigned int EventData);
+/************************** Variable Definitions *****************************/
+ XUartLite UartLite_1;            /* The instance of the UartLite Device */
+ XUartLite UartLite_2;
+ XIntc InterruptController;     /* The instance of the Interrupt Controller */
+
+/*
+ * The following variables are shared between non-interrupt processing and
+ * interrupt processing such that they must be global.
+ */
+
+/*
+ * The following buffers are used in this example to send and receive data
+ * with the UartLite.
+ */
+u8 SendBuffer[TEST_BUFFER_SIZE];
+u8 ReceiveBuffer[TEST_BUFFER_SIZE];
+
+
+/*
+ *
+ * DDR Memory MAP:
+ * VGA BUFFER1 0x8000 0000
+ * VGA BUFFER2 0x8100 0000
+ * VGA MENU    0x8200 0000
+ * SOUNDS1     0x8300 0000
+ * SOUNDS2     0x8310 0000
+ * SOUNDS3     0x8320 0000
+ * BIN-MENU    0x8400 0000
+ *
+ *
+ *
+ *
+ *
+ * */
+volatile unsigned int * memptr = (unsigned int*) XPAR_MIG_7SERIES_0_BASEADDR;
+volatile unsigned int * memptr2 = (unsigned int*) 0x81000000;
+volatile unsigned int * menuptr = (unsigned int *) 0x82000000;
+
+#define MENU   0x87000018
+#define plane1   0x87C00018
+#define plane2   0x87D00018
+#define exhaust1   0x87E00018
+#define exhaust2   0x87F00018
+/*
+ * The following counters are used to determine when the entire buffer has
+ * been sent and received.
+ */
+static volatile int TotalReceivedCount;
+static volatile int TotalSentCount;
+/*VGA VARIABLES*/
+ #define PLANE 0xC0000000
+ #define MISSLE 0xC0001B74
+ #define EXPLOSION 0xC000299C
+ #define TANK1 0xC000434C
+ #define TANK2 0xC000B2D8
+
+
+#define WHITE  0x00FFFFFF
+#define YELLOW 0x00FFFF00
+#define BLUE   0x0000000FF
+#define GREEN  0x0000FF
+#define RED    0x00FF0000
+#define BLACK  0x00000000
+#define LT_GRAY   0x00AAAAAA
+#define DK_GRAY   0x00555555
+
+#define XY_TO_I(X, Y) ((Y*1024) + X)
+
+
+volatile unsigned int * expPointer = (unsigned int *) 0x84A00000;
+volatile unsigned int * TFT =        (unsigned int *) 0x44A00000;
+volatile unsigned int *neededAddress = (unsigned int *)0x44a2000C;
+
+
+int p1_x;
+int p1_y;
+int x1_speed;
+int y1_speed;
+
+int p2_x;
+int p2_y;
+int x2_speed;
+int y2_speed;
+
+int p1_health;
+int p2_health;
+
+int p2_missile;
+int p1_missile;
+
+int p2_missile_speed;
+int p1_missile_speed;
+
+int p2_missile_x;
+int p2_missile_y;
+int p2_newmissile_x;
+int p2_newmissile_y;
+
+int p1_missile_x;
+int p1_missile_y;
+int p1_newmissile_x;
+int p1_newmissile_y;
+
+int start;
+
+void draw_health(int x, int y)
+{
+	int i, j;
+	for (j = 10; j<15; j++) {
+		for (i=20; i<20+x; i++) {
+			memptr [ XY_TO_I(i,j) ] = GREEN;
+			memptr2 [ XY_TO_I(i,j) ] = GREEN;
+		}
+
+		for (i=20+x; i<20+200; i++) {
+			memptr [ XY_TO_I(i,j) ] = RED;
+			memptr2 [ XY_TO_I(i,j) ] = RED;
+		}
+
+		for (i=620; i>620-y; i--) {
+			memptr [ XY_TO_I(i,j) ] = GREEN;
+			memptr2 [ XY_TO_I(i,j) ] = GREEN;
+		}
+
+		for (i=620-y; i>620-200; i--) {
+			memptr [ XY_TO_I(i,j) ] = RED;
+			memptr2 [ XY_TO_I(i,j) ] = RED;
+		}
+	}
+}
+
+
+void vga_draw_object_one(int x, int y, int obj_width, int obj_height, unsigned int *image){
+  int j = 0;
+   int i = 0;
+   int counter=0;
+
+  for (j = y; j < y+obj_height; j++)
+   for(i = x; i < x+obj_width; i++)
+   {
+
+   // a[XY_TO_I(x,y)] = clr;
+      //a[XY_TO_I(i,j)] = *(image+counter) ;
+    memptr[XY_TO_I(i,j)] = *(image+counter);
+    counter++;
+   }
+
+  *(TFT) = 0x80000000;
+ }
+
+void vga_draw_object_two(int x, int y, int obj_width, int obj_height, unsigned int *image){
+  int j = 0;
+   int i = 0;
+   int counter=0;
+
+  for (j = y; j < y+obj_height; j++)
+   for(i = x; i < x+obj_width; i++)
+   {
+
+   // a[XY_TO_I(x,y)] = clr;
+      //a[XY_TO_I(i,j)] = *(image+counter) ;
+    memptr2[XY_TO_I(i,j)] = *(image+counter) ;
+    counter++;
+   }
+   *(TFT) = 0x81000000;
+ }
+
+
+void vga_draw_pixel(int x, int y, int clr)
+
+{
+	unsigned int *a = (unsigned int *)memptr;
+	unsigned int *a2 = (unsigned int *)memptr2;
+
+	a[XY_TO_I(x,y)] = clr ;
+	a2[XY_TO_I(x,y)] = clr ;
+}
+
+void vga_clear_screen(int clr)
+
+{
+	int j = 0;
+	int i = 0;
+	for (j = 0; j < 480; j++) {
+	for(i = 0; i < 640; i++) {
+		vga_draw_pixel(i, j, clr); //Write Y //the drawing happens column-wise from left to right
+	} }
+}
+
+void vga_draw_screen(unsigned int * ptr)
+
+{
+	int j = 0;
+	int i = 0;
+	int counter = 0;
+	for (j = 0; j < 480; j++) {
+	for(i = 0; i < 640; i++) {
+		memptr [ XY_TO_I(i,j) ] = *(ptr+counter);
+		memptr2 [ XY_TO_I(i,j) ] = *(ptr+counter);
+		counter++;
+	} }
+}
+
+void vga_clear_screen_part_buffer(int clr){
+   int j = 0;
+   int i = 0;
+   for (j = 150; j < 300; j++)
+   for(i = 640-45; i < 640; i++)
+   {
+    memptr2[XY_TO_I(i,j)]  = clr ;
+    memptr[XY_TO_I(i,j)]  = clr ;
+   }
+   *(TFT) = 0x80000000;
+ }
+
+void reset_game()
+{
+	p1_x = 60;
+	p1_y = 60;
+	x1_speed = 0;
+	y1_speed = 0;
+	p2_x = 550;
+	p2_y = 60;
+	x2_speed = 0;
+	y2_speed = 0;
+	p1_health = 200;
+	p2_health = 200;
+}
+
+void draw_object(int x, int y, int height, int width,  int direction, unsigned int * image, unsigned int * memptr_final) {
+
+
+		int y_off = 12;
+		int x_off = 10;
+		if (image == MISSLE) {
+			y_off = 0; x_off =25;
+		}
+
+
+		int i,j, counter = 0;
+		if (direction == 0) {
+					/*Clear old object*/
+					for (j = y-y_off; j < y+height+y_off   ; j++) {
+					for (i = x-x_off; i < x + width+x_off ; i++) {
+						if (i > (x+width) || i < x || j> y+height || j <y )
+						memptr_final [ XY_TO_I(i,j) ] = WHITE;
+					}
+					}
+					/*Draw new object*/
+					for (j = y ; j <  y+height ; j++) {
+					for (i = x ; i <  x+width  ; i++) {
+						memptr_final [ XY_TO_I(i,j) ] = *(image+counter);
+						counter ++;
+					}
+					}
+				}
+		if (direction == 1) {
+					/*Clear old object*/
+					for (j = y-y_off; j < y+height+y_off   ; j++) {
+					for (i = x-x_off; i < x + width+x_off ; i++) {
+						if (i > (x+width) || i < x || j> y+height || j <y )
+						memptr_final [ XY_TO_I(i,j) ] = WHITE;
+					}
+					}
+
+					/*Draw new object*/
+					for (j = y       ; j <  y+height ; j++) {
+					for (i = x+width-1 ; i >= x        ; i--) {
+						memptr_final [ XY_TO_I(i,j) ] = *(image+counter);
+						counter ++;
+					}
+					}
+				}
+}
+
+int check_collision(int x1, int y1, int x2, int y2)
+{
+	if ( x2 > x1         &&
+		 x2 < (x1 + 50)  &&
+		 y2 > (y1-20)    &&
+		 y2 < (y1 + 30))
+	{
+		return 1;
+	}
+
+	return 0;
+}
+
+void clear_area(int x1, int y1, int h, int w)
+{
+	int i,j;
+	for (j = y1; j < y1+h   ; j++) {
+	for (i = x1; i < x1 + w; i++) {
+		memptr [ XY_TO_I(i,j) ] = WHITE;
+		memptr2 [ XY_TO_I(i,j) ] = WHITE;
+	}
+	}
+}
+
+/******************************************************************************/
+
+/**
+*
+* Main function to call the UartLite interrupt example.
+* @param None
+*
+* @return XST_SUCCESS if successful, XST_FAILURE if unsuccessful
+*
+* @note None
+*
+*******************************************************************************/
+
+int main(void)
+{
+
+
+	unsigned int *neededAddress = (unsigned int *)0x44a2000C; //address to read; slv_reg3
+	//unsigned int *initialAddress = (unsigned int *) 0x80000000; //startaddress
+	unsigned int *ipsAddress = (unsigned int *)0x44a20008; //address to place data in; slv_reg2
+	unsigned int *ipsReference = (unsigned int *)0x44a20004; //slv_reg1
+    unsigned int *limit = (unsigned int *)0x44a20010;
+	unsigned int *temp;
+
+	//*limit = 0x75300;
+	//*ipsReference = 0x80000154; //address for BIN file
+
+	//place the initial address
+	*limit = 480000;
+	*ipsReference = 0x80000154;
+		/*while(1){
+			temp = (unsigned int*) *neededAddress;
+			*ipsAddress  = *temp;
+		}*/
+
+
+	int Status;
+	/*
+	* Run the UartLite Interrupt example, specify the Device ID that is
+	* generated in xparameters.h.
+	*/
+	Status = UartLiteIntrExample(UARTLITE_DEVICE_ID_1, UARTLITE_DEVICE_ID_2);
+	if (Status != XST_SUCCESS) {
+	return XST_FAILURE;
+	}
+	return XST_SUCCESS;
+}
+
+/****************************************************************************/
+/**
+*
+* This function does a minimal test on the UartLite device and driver as a
+* design example. The purpose of this function is to illustrate
+* how to use the XUartLite component.
+*
+* This function sends data and expects to receive the same data through the
+* UartLite. The user must provide a physical loopback such that data which is
+* transmitted will be received.
+*
+* This function uses interrupt driver mode of the UartLite device. The calls
+* to the UartLite driver in the handlers should only use the non-blocking
+* calls.
+*
+* @param DeviceId is the Device ID of the UartLite Device and is the
+* XPAR_<uartlite_instance>_DEVICE_ID value from xparameters.h.
+*
+* @return XST_SUCCESS if successful, otherwise XST_FAILURE.
+*
+* @note
+*
+* This function contains an infinite loop such that if interrupts are not
+* working it may never return.
+*
+****************************************************************************/
+void vga_draw_object_fahad(int x, int y, int obj_width, int obj_height, unsigned int *image){
+				  int j = 0;
+				   int i = 0;
+				   int counter=0;
+				   unsigned int *a = (unsigned int *)memptr;
+				   for (j = y; j < y+obj_height; j++)
+				   for(i = x; i < x+obj_width; i++)
+				   {
+
+				   // a[XY_TO_I(x,y)] = clr;
+				      a[XY_TO_I(i,j)] = *(image+counter) ;
+				      counter++;
+				   }
+				 }
+
+int UartLiteIntrExample(u16 DeviceId_1, u16 DeviceId_2)
+{
+	//int ii = 1;
+
+
+
+	int Status;
+	int Index;
+	/*
+	* Initialize the UartLite drivers so that it's ready to use.
+	*/
+	Status = XUartLite_Initialize(&UartLite_1, DeviceId_1);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	Status = XUartLite_Initialize(&UartLite_2, DeviceId_2);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	/*
+	* Perform self-tests to ensure that the hardware was built correctly.
+	*/
+	Status = XUartLite_SelfTest(&UartLite_1);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+	Status = XUartLite_SelfTest(&UartLite_2);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+	/*
+	* Connect the UartLite to the interrupt subsystem such that interrupts can
+	* occur. This function is application specific.
+	*/
+	Status = SetupInterruptSystem(&UartLite_1, &UartLite_2);
+	//Status = SetupInterruptSystem(&UartLite_2);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+	/*
+	* Setup the handlers for the UartLite that will be called from the
+	* interrupt context when data has been sent and received, specify a
+	* pointer to the UartLite driver instance as the callback reference so
+	* that the handlers are able to access the instance data.
+	*/
+	XUartLite_SetSendHandler(&UartLite_1, SendHandler, &UartLite_1);
+	XUartLite_SetRecvHandler(&UartLite_1, RecvHandler, &UartLite_1);
+	XUartLite_SetRecvHandler(&UartLite_2, RecvHandler2, &UartLite_2);
+
+	/*
+	* Enable the interrupt of the UartLite so that interrupts will occur.
+	*/
+	XUartLite_EnableInterrupt(&UartLite_1);
+	XUartLite_EnableInterrupt(&UartLite_2);
+
+	/*
+	* Initialize the send buffer bytes with a pattern to send and the
+	* the receive buffer bytes to zero to allow the receive data to be
+	* verified.
+	*/
+	for (Index = 0; Index < TEST_BUFFER_SIZE; Index++) {
+	SendBuffer[Index] = Index;
+	ReceiveBuffer[Index] = 0;
+	}
+	/*
+	* Start receiving data before sending it since there is a loopback.
+	*/
+
+
+	//*(TFT) = MENU;
+
+	//vga_clear_screen(WHITE);
+
+	unsigned int *image =  (unsigned int *)PLANE;
+	reset_game();
+	int i, j;
+	int double_buffer = 0;
+	int old_p2_x=0;
+	int old_p2_y=0;
+	start = 0;
+
+	//*(TFT) = memptr;
+	vga_draw_screen (MENU);
+
+	/*while (1) {
+
+	}*/
+
+	//xil_printf("do1.");
+
+	//address to read; slv_reg3
+	//unsigned int *initialAddress = (unsigned int *) 0x80000000; //startaddress
+	unsigned int *ipsAddress = (unsigned int *)0x44a20008; //address to place data in; slv_reg2
+	unsigned int *ipsReference = (unsigned int *)0x44a20004; //slv_reg1
+    unsigned int *limit = (unsigned int *)0x44a20010;
+	unsigned int *temp;
+
+	//*limit = 0x75300;
+	//*ipsReference = 0x80000154; //address for BIN file
+
+	//place the initial address
+	*limit = 480000;
+	*ipsReference = 0x83000154;
+
+	/**DDR - MAKE MENU BUFFER**/
+	/*int counter = 0;
+	unsigned int * menulocation = (unsigned int * ) MENU;
+	for (j = 0 ; j < 480 ; j++) {
+	for (i = 0 ; i < 640 ; i++) {
+		menuptr [ XY_TO_I(i,j) ] = *(menulocation+counter);
+		counter ++;
+	}
+	}*/
+
+	/************BIG PLANE*****************/
+	/*unsigned int* big_plane = 0x87F00000;
+	unsigned int* big_plane2 = 0x87E00000;
+	unsigned int* normal = 0x87C00000; // 433*192  .... 161 106
+	unsigned int* extended = 0x87D00000; // 205 X 101
+
+	int intro_screen = 0;
+	vga_clear_screen(BLACK);
+	vga_draw_object_one(0,100, 640, 281, (unsigned int *)big_plane);
+	vga_draw_object_two(0,100, 596, 281, (unsigned int *)big_plane2);
+
+	 while(intro_screen <500){
+			 vga_draw_object_one(433,192, 161, 106, (unsigned int *)normal);
+			 vga_draw_object_two(433,192, 205, 101, (unsigned int *)extended);
+			 vga_clear_screen_part_buffer(BLACK);
+			 intro_screen++;
+	 }*/
+	/************BIG PLANE END**************/
+
+	start = 0;
+	int counter = 0;
+	unsigned int * menulocation = (unsigned int * ) MENU;
+	for (j = 0 ; j < 480 ; j++) {
+	for (i = 0 ; i < 640 ; i++) {
+		menuptr [ XY_TO_I(i,j) ] = *(menulocation+counter);
+		counter ++;
+	}
+	}
+	
+	while (1) {
+
+		while (start == 0) {
+			*(TFT) =  menuptr;
+			temp = (unsigned int*) *neededAddress;
+			*ipsAddress  = *temp;
+		}
+
+
+
+		//xil_printf("+");
+		int Data = ((y2_speed +4) << 9) | ((x2_speed+4) << 13) | 1;
+
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, 0);
+
+		//xil_printf("do2.");
+
+		int p2_yspeed = ((15 << 9) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET) ) >>9;
+		int p2_xspeed = ((15 << 13) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET)) >> 13 ;
+
+		int s_player1_y = 2047 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG2_OFFSET) ;
+		int s_player1_x = (0b1111111111100000000000 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG2_OFFSET)) >> 11 ;
+
+		int s_player2_y = 2047 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG3_OFFSET) ;
+		int s_player2_x = ((2047 << 11) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG3_OFFSET)) >> 11 ;
+
+		int missile1_fired = (0b1 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET));
+		int missile1_y = (0b111111111110 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET))>>1;
+		int missile1_x = (0b11111111111000000000000 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET)) >> 12;
+
+		//xil_printf ("%d - %d - %d - %d\n", p2_xspeed, p2_yspeed, s_player2_x , s_player2_y);
+		//xil_printf ("%d - %d - %d\n", missile1_fired, missile1_y, missile1_x);
+/*
+		xil_printf("%d - %d - %d - %d - %d\n", 	GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET),
+												GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG1_OFFSET),
+										GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG2_OFFSET),
+										GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG3_OFFSET),
+										GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET)
+
+
+		);
+*/
+
+
+		draw_health(p1_health, p2_health);
+		p2_x = s_player2_x;
+		p2_y = s_player2_y;
+		p1_x += x1_speed;
+		p1_y += y1_speed;
+		//p2_x += x2_speed;
+		//p2_y += y2_speed;
+		int counter = 1;
+		/*DOUBLE BUFFERING: Decide what buffer to use?*/
+		unsigned int * memptr_final;
+		if (double_buffer == 0) {
+			memptr_final = (unsigned int*) memptr;
+			*(TFT) = memptr2;
+			double_buffer = 1;
+		} else {
+			memptr_final = (unsigned int*) memptr2;
+			*(TFT) = memptr;
+			double_buffer = 0;
+		}
+
+		/*DRAW UPDATE PLANES*/
+		draw_object(p1_x, p1_y,35,50,0,PLANE, memptr_final);
+		draw_object(p2_x, p2_y,35,50,1,PLANE, memptr_final);
+		/*if (double_buffer == 0) {
+			draw_object(p1_x, p1_y,64,159,0,plane1, memptr_final);
+			draw_object(p2_x, p2_y,64,159,1,plane1, memptr_final);
+		} else {
+			draw_object(p1_x, p1_y,64,159,0,plane2, memptr_final);
+			draw_object(p2_x, p2_y,64,159,1,plane2, memptr_final);
+		}*/
+		/*MISSILE LOGIC*/
+		if (p1_missile == 1) {
+			draw_object(p1_missile_x, p1_missile_y,15,60,0,MISSLE, memptr_final);
+			p1_missile_x += 6*p1_missile_speed;
+			if ( p1_missile_x > 600 ) {
+				clear_area ( p1_missile_x-25, p1_missile_y,15,60 );
+				p1_missile = 0;
+			}
+			if ( check_collision( p1_missile_x, p1_missile_y, p2_x, p2_y ) ) {
+				p1_missile = 0;
+				if (p2_health >0 ) p2_health -= 25;
+				clear_area ( p1_missile_x-25, p1_missile_y,15,60 );
+				int ij = 0;
+				while (ij<50000) {
+									temp = (unsigned int*) *neededAddress;
+									*ipsAddress  = *temp;
+									ij++;
+								}
+			}
+		}
+
+		if (p2_missile == 1) {
+			draw_object(p2_missile_x, p2_missile_y,15,60,1,MISSLE, memptr_final);
+			p2_missile_x -= 6*p2_missile_speed;
+			if ( p2_missile_x < 20 ) {
+				clear_area ( p2_missile_x, p2_missile_y,15,60+25 );
+				p2_missile = 0;
+			}
+			if ( check_collision( p2_missile_x, p2_missile_y, p1_x, p1_y ) ) {
+				p2_missile = 0;
+				if (p1_health >0 ) p1_health -= 25;
+				clear_area ( p2_missile_x, p2_missile_y,15,60+25 );
+				int ij=0;
+				while (ij<50000) {
+					temp = (unsigned int*) *neededAddress;
+					*ipsAddress  = *temp;
+					ij++;
+				}
+			}
+		}
+
+		if (p2_health <= 0 || p1_health <= 0) {
+			//vga_draw_screen (MENU);
+			start = 0;
+			reset_game();
+		}
+
+	}
+
+return XST_SUCCESS;
+}
+
+/*BLUETOOTH CODE BELOW**/
+
+/*****************************************************************************/
+/**
+*
+* This function is the handler which performs processing to send data to the
+* UartLite. It is called from an interrupt context such that the amount of
+* processing performed should be minimized. It is called when the transmit
+* FIFO of the UartLite is empty and more data can be sent through the UartLite.
+*
+* This handler provides an example of how to handle data for the UartLite,
+* but is application specific.
+* @param CallBackRef contains a callback reference from the driver.
+* In this case it is the instance pointer for the UartLite driver.
+* @param EventData contains the number of bytes sent or received for sent
+* and receive events.
+*
+* @return None.
+*
+* @note None.
+*
+****************************************************************************/
+void SendHandler(void *CallBackRef, unsigned int EventData)
+{
+	TotalSentCount = EventData;
+}
+
+/****************************************************************************/
+/**
+*
+* This function is the handler which performs processing to receive data from
+* the UartLite. It is called from an interrupt context such that the amount of
+* processing performed should be minimized.  It is called data is present in
+* the receive FIFO of the UartLite such that the data can be retrieved from
+* the UartLite. The size of the data present in the FIFO is not known when
+* this function is called.
+*
+* This handler provides an example of how to handle data for the UartLite,
+* but is application specific.
+*
+* @param CallBackRef contains a callback reference from the driver, in
+* this case it is the instance pointer for the UartLite driver.
+* @param EventData contains the number of bytes sent or received for sent
+* and receive events.
+*
+* @return None.
+*
+* @note None.
+*
+****************************************************************************/
+
+int x_count;
+int y_count;
+char last_char;
+int xin, yin;
+int x2_count;
+int y2_count;
+char last_char2;
+int xin2, yin2;
+
+void RecvHandler(void *CallBackRef, unsigned int EventData)
+
+{
+	if (start == 0) {
+		start = 1;
+		vga_clear_screen(WHITE);
+	}
+
+
+	TotalReceivedCount = EventData;
+	int gotint = *((int *)(0x40620000));
+	//xil_printf("a\n");
+	unsigned char got = gotint;
+	if(got == 'R' && p1_missile != 1) {
+		int Data = 0b1100000000000000001;
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, 0x0);
+
+		//int Data = 50;//int Data = 0b1100000000000000001;
+		/*GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG1_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG2_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG3_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG5_OFFSET, Data);
+		*/
+
+		p1_missile = 1;
+		//p1_newmissile_x = p1_x+70;
+		//p1_newmissile_y = p1_y;
+		p1_missile_x = p1_x + 60;
+		p1_missile_y = p1_y;
+		p1_missile_speed = 2;
+	}
+	if (got == 'Y' && start == 1) {
+		start = 2;
+		vga_clear_screen(WHITE);
+	}
+	//if ( got == 'X' || got == 'Y' ) xil_printf ("\n");
+	//xil_printf("(1)%c",got);
+	if (x_count == 1) {
+	xin = got - '0';
+	x_count = 0 ;
+	//xil_printf ("X:%d\n", xin);
+	x1_speed = (xin-4);
+	}
+
+	if (y_count == 1) {
+	yin = got - '0';
+	y_count =0;
+	//xil_printf ("Y:%d\n", yin);
+	y1_speed = (yin-4);
+	}
+
+	if ( got == 'X' ) {
+	x_count = 1;
+	}
+	if ( got == 'Y' ) {
+	y_count = 1;
+	}
+	//XUartLite_ResetFifos(&UartLiteInst);
+	last_char = got;
+	return;
+}
+
+void RecvHandler2(void *CallBackRef, unsigned int EventData)
+{
+	if (start == 0) {
+		start = 1;
+		vga_clear_screen(BLACK);
+	}
+
+
+	TotalReceivedCount = EventData;
+	int gotint = *((int *)(0x40610000));
+	unsigned char got = gotint;
+	if(got == 'R' && p2_missile !=1 ) {
+		int Data = 0b1100000000000000001;
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, Data);
+
+		/*GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG1_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG2_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG3_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET, Data);
+		GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG5_OFFSET, Data);
+		*/
+
+
+
+		p2_missile = 1;
+		//p2_newmissile_x = p2_x;
+		//p2_newmissile_y = p2_y;
+		p2_missile_x = p2_x;
+		p2_missile_y = p2_y;
+		p2_missile_speed = 2;
+	}
+	if (got == 'Y'&& start == 1) {
+		start = 2;
+		vga_clear_screen(WHITE);
+	}
+	//xil_printf("b\n");
+	if (x2_count == 1) {
+	xin2 = got - '0';
+	x2_count = 0 ;
+	x2_speed = (xin2-4);
+
+	}
+	if (y2_count == 1) {
+	yin2 = got - '0';
+	int Data = (yin2 << 9) | (xin2 << 13) | 1;
+	//GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, Data);
+	//GAME_ENGINE_mWriteReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET, 0);
+	xil_printf(".");
+
+	y2_count =0;
+	y2_speed = (yin2-4);
+
+	}
+
+	if ( got == 'X' ) {
+	x2_count = 1;
+	}
+	if ( got == 'Y' ) {
+	y2_count = 1;
+	}
+	last_char2 = got;
+	return;
+}
+
+
+/****************************************************************************/
+/**
+*
+* This function setups the interrupt system such that interrupts can occur
+* for the UartLite device. This function is application specific since the
+* actual system may or may not have an interrupt controller. The UartLite
+* could be directly connected to a processor without an interrupt controller.
+* The user should modify this function to fit the application.
+*
+* @param    UartLitePtr contains a pointer to the instance of the UartLite
+*           component which is going to be connected to the interrupt
+*           controller.
+*
+* @return   XST_SUCCESS if successful, otherwise XST_FAILURE.
+* @note     None.
+*
+****************************************************************************/
+
+int SetupInterruptSystem(XUartLite *UartLitePtr_1, XUartLite *UartLitePtr_2)
+{
+	int Status;
+	/*
+	* Initialize the interrupt controller driver so that it is ready to
+	* use.
+	*/
+	Status = XIntc_Initialize(&InterruptController, INTC_DEVICE_ID);
+	if (Status != XST_SUCCESS) {
+	return XST_FAILURE;
+	}
+
+	/*
+	* Connect a device driver handler that will be called when an interrupt
+	* for the device occurs, the device driver handler performs the
+	* specific interrupt processing for the device.
+	*/
+	Status = XIntc_Connect(&InterruptController, UARTLITE_INT_IRQ_ID_1,
+	  (XInterruptHandler)XUartLite_InterruptHandler,
+	  (void *)UartLitePtr_1);
+	if (Status != XST_SUCCESS) {
+	return XST_FAILURE;
+	}
+
+	Status = XIntc_Connect(&InterruptController, UARTLITE_INT_IRQ_ID_2,
+	  (XInterruptHandler)XUartLite_InterruptHandler,
+	  (void *)UartLitePtr_2);
+	if (Status != XST_SUCCESS) {
+	return XST_FAILURE;
+	}
+
+	/*
+	* Start the interrupt controller such that interrupts are enabled for
+	* all devices that cause interrupts, specific real mode so that
+	* the UartLite can cause interrupts through the interrupt controller.
+	*/
+	Status = XIntc_Start(&InterruptController, XIN_REAL_MODE);
+	if (Status != XST_SUCCESS) {
+	return XST_FAILURE;
+	}
+
+	/*
+	* Enable the interrupt for the UartLite device.
+	*/
+	XIntc_Enable(&InterruptController, UARTLITE_INT_IRQ_ID_1);
+	XIntc_Enable(&InterruptController, UARTLITE_INT_IRQ_ID_2);
+
+	/*
+	* Initialize the exception table.
+	*/
+	Xil_ExceptionInit();
+
+	/*
+	* Register the interrupt controller handler with the exception table.
+	*/
+	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
+	(Xil_ExceptionHandler)XIntc_InterruptHandler,
+	&InterruptController);
+
+	/*
+	* Enable exceptions.
+	*/
+	Xil_ExceptionEnable();
+	return XST_SUCCESS;
+}
