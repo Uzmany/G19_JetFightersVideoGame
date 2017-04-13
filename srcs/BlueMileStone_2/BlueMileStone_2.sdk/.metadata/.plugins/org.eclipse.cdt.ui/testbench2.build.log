@@ -1,0 +1,31 @@
+15:29:08 **** Auto Build of configuration Debug for project testbench2 ****
+make all 
+'Building file: ../src/helloworld.c'
+'Invoking: MicroBlaze gcc compiler'
+mb-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -I../../testbench2_bsp/microblaze_0/include -mlittle-endian -mcpu=v9.6 -mxl-soft-mul -Wl,--no-relax -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+../src/helloworld.c:88:5: warning: built-in function 'y1' declared as non-function
+ int y1;
+     ^
+In file included from ../src/helloworld.c:52:0:
+../src/helloworld.c: In function 'vga_start':
+../../testbench2_bsp/microblaze_0/include/game_engine.h:37:4: warning: implicit declaration of function 'Xil_Out32' [-Wimplicit-function-declaration]
+    Xil_Out32((BaseAddress) + (RegOffset), (u32)(Data))
+    ^
+../src/helloworld.c:180:3: note: in expansion of macro 'GAME_ENGINE_mWriteReg'
+   GAME_ENGINE_mWriteReg (XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, 0,  25);
+   ^
+../src/helloworld.c:172:11: warning: variable 'xval1' set but not used [-Wunused-but-set-variable]
+  int xval,xval1;
+           ^
+'Finished building: ../src/helloworld.c'
+' '
+'Building target: testbench2.elf'
+'Invoking: MicroBlaze gcc linker'
+mb-gcc -Wl,-T -Wl,../src/lscript.ld -L../../testbench2_bsp/microblaze_0/lib -mlittle-endian -mcpu=v9.6 -mxl-soft-mul -Wl,--no-relax -o "testbench2.elf"  ./src/helloworld.o ./src/platform.o   -Wl,--start-group,-lxil,-lgcc,-lc,--end-group
+./src/helloworld.o: In function `vga_start':
+W:\ECE532\march8-working.xpr\BlueMileStone_2\BlueMileStone_2.sdk\testbench2\Debug/../src/helloworld.c:180: undefined reference to `Xil_Out32'
+collect2.exe: error: ld returned 1 exit status
+make: *** [testbench2.elf] Error 1
+
+15:29:09 Build Finished (took 515ms)
+

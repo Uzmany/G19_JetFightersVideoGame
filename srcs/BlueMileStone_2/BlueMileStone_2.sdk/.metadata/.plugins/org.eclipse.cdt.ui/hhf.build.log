@@ -1,0 +1,11 @@
+15:28:30 **** Incremental Build of configuration Debug for project hhf ****
+make all 
+'Building file: ../src/testperiph.c'
+'Invoking: MicroBlaze gcc compiler'
+mb-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/testperiph.o" -I../../hhf_bsp/microblaze_0/include -mlittle-endian -mcpu=v9.6 -mxl-soft-mul -Wl,--no-relax -MMD -MP -MF"src/testperiph.d" -MT"src/testperiph.o" -o "src/testperiph.o" "../src/testperiph.c"
+../src/testperiph.c:25:22: fatal error: platform.h: No such file or directory
+compilation terminated.
+make: *** [src/testperiph.o] Error 1
+
+15:28:31 Build Finished (took 203ms)
+

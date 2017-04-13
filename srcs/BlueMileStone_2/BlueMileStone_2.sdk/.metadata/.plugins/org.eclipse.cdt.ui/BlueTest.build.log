@@ -1,0 +1,44 @@
+15:28:30 **** Incremental Build of configuration Debug for project BlueTest ****
+make all 
+'Building file: ../src/helloworld.c'
+'Invoking: MicroBlaze gcc compiler'
+mb-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -I../../BlueTest_bsp/microblaze_0/include -mlittle-endian -mcpu=v9.6 -mxl-soft-mul -Wl,--no-relax -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+../src/helloworld.c:34:6: error: conflicting types for 'print'
+ void print(char *str);
+      ^
+In file included from c:\xilinx\sdk\2016.2\gnu\microblaze\nt\microblaze-xilinx-elf\include\stdio.h:29:0,
+                 from ../src/helloworld.c:24:
+c:\xilinx\sdk\2016.2\gnu\microblaze\nt\microblaze-xilinx-elf\include\stdio.h:223:9: note: previous declaration of 'print' was here
+ void    _EXFUN(print, (const char* ));
+         ^
+../src/helloworld.c: In function 'main':
+../src/helloworld.c:31:27: error: 'XPAR_INTC_1_DEVICE_ID' undeclared (first use in this function)
+ #define INTC_DEVICE_ID    XPAR_INTC_1_DEVICE_ID
+                           ^
+../src/helloworld.c:47:17: note: in expansion of macro 'INTC_DEVICE_ID'
+     IntcExample(INTC_DEVICE_ID);
+                 ^
+../src/helloworld.c:31:27: note: each undeclared identifier is reported only once for each function it appears in
+ #define INTC_DEVICE_ID    XPAR_INTC_1_DEVICE_ID
+                           ^
+../src/helloworld.c:47:17: note: in expansion of macro 'INTC_DEVICE_ID'
+     IntcExample(INTC_DEVICE_ID);
+                 ^
+../src/helloworld.c: In function 'IntcExample':
+../src/helloworld.c:32:30: error: 'XPAR_INTC_0_TMRCTR_0_VEC_ID' undeclared (first use in this function)
+ #define INTC_DEVICE_INT_ID   XPAR_INTC_0_TMRCTR_0_VEC_ID
+                              ^
+../src/helloworld.c:72:52: note: in expansion of macro 'INTC_DEVICE_INT_ID'
+  Status = XIntc_SimulateIntr(&InterruptController, INTC_DEVICE_INT_ID);
+                                                    ^
+../src/helloworld.c: In function 'SetUpInterruptSystem':
+../src/helloworld.c:32:30: error: 'XPAR_INTC_0_TMRCTR_0_VEC_ID' undeclared (first use in this function)
+ #define INTC_DEVICE_INT_ID   XPAR_INTC_0_TMRCTR_0_VEC_ID
+                              ^
+../src/helloworld.c:92:43: note: in expansion of macro 'INTC_DEVICE_INT_ID'
+  Status = XIntc_Connect(XIntcInstancePtr, INTC_DEVICE_INT_ID,
+                                           ^
+make: *** [src/helloworld.o] Error 1
+
+15:28:30 Build Finished (took 265ms)
+

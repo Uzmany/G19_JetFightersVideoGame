@@ -1,0 +1,107 @@
+15:46:15 **** Auto Build of configuration Debug for project testbench ****
+make all 
+'Building file: ../src/helloworld.c'
+'Invoking: MicroBlaze gcc compiler'
+mb-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -I../../testbench_bsp/microblaze_0/include -mlittle-endian -mcpu=v9.6 -mxl-soft-mul -Wl,--no-relax -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+../src/helloworld.c: In function 'draw_intro':
+../src/helloworld.c:339:17: warning: unused variable 'big_plane2' [-Wunused-variable]
+   unsigned int* big_plane2 = (unsigned int*) 0x87E00000;
+                 ^
+../src/helloworld.c: In function 'UartLiteIntrExample':
+../src/helloworld.c:539:9: warning: assignment makes integer from pointer without a cast [-Wint-conversion]
+  *(TFT) = menuptr;
+         ^
+../src/helloworld.c:545:11: warning: assignment makes integer from pointer without a cast [-Wint-conversion]
+    *(TFT) = memptr;
+           ^
+../src/helloworld.c:547:11: warning: assignment makes integer from pointer without a cast [-Wint-conversion]
+    *(TFT) = memptr2;
+           ^
+../src/helloworld.c:560:11: warning: assignment makes integer from pointer without a cast [-Wint-conversion]
+    *(TFT) =  menuptr;
+           ^
+../src/helloworld.c:604:11: warning: assignment makes integer from pointer without a cast [-Wint-conversion]
+    *(TFT) = memptr2;
+           ^
+../src/helloworld.c:608:11: warning: assignment makes integer from pointer without a cast [-Wint-conversion]
+    *(TFT) = memptr;
+           ^
+../src/helloworld.c:152:16: warning: passing argument 6 of 'draw_object' makes pointer from integer without a cast [-Wint-conversion]
+  #define PLANE 0xC0000000
+                ^
+../src/helloworld.c:613:34: note: in expansion of macro 'PLANE'
+   draw_object(p1_x, p1_y,35,50,0,PLANE, memptr_final);
+                                  ^
+../src/helloworld.c:267:6: note: expected 'unsigned int *' but argument is of type 'unsigned int'
+ void draw_object(int x, int y, int height, int width,  int direction, unsigned int * image, unsigned int * memptr_final) {
+      ^
+../src/helloworld.c:152:16: warning: passing argument 6 of 'draw_object' makes pointer from integer without a cast [-Wint-conversion]
+  #define PLANE 0xC0000000
+                ^
+../src/helloworld.c:614:34: note: in expansion of macro 'PLANE'
+   draw_object(p2_x, p2_y,35,50,1,PLANE, memptr_final);
+                                  ^
+../src/helloworld.c:267:6: note: expected 'unsigned int *' but argument is of type 'unsigned int'
+ void draw_object(int x, int y, int height, int width,  int direction, unsigned int * image, unsigned int * memptr_final) {
+      ^
+../src/helloworld.c:153:17: warning: passing argument 6 of 'draw_object' makes pointer from integer without a cast [-Wint-conversion]
+  #define MISSLE 0xC0001B74
+                 ^
+../src/helloworld.c:618:51: note: in expansion of macro 'MISSLE'
+    draw_object(p1_missile_x, p1_missile_y,15,60,0,MISSLE, memptr_final);
+                                                   ^
+../src/helloworld.c:267:6: note: expected 'unsigned int *' but argument is of type 'unsigned int'
+ void draw_object(int x, int y, int height, int width,  int direction, unsigned int * image, unsigned int * memptr_final) {
+      ^
+../src/helloworld.c:153:17: warning: passing argument 6 of 'draw_object' makes pointer from integer without a cast [-Wint-conversion]
+  #define MISSLE 0xC0001B74
+                 ^
+../src/helloworld.c:633:51: note: in expansion of macro 'MISSLE'
+    draw_object(p2_missile_x, p2_missile_y,15,60,1,MISSLE, memptr_final);
+                                                   ^
+../src/helloworld.c:267:6: note: expected 'unsigned int *' but argument is of type 'unsigned int'
+ void draw_object(int x, int y, int height, int width,  int direction, unsigned int * image, unsigned int * memptr_final) {
+      ^
+../src/helloworld.c:599:7: warning: unused variable 'counter' [-Wunused-variable]
+   int counter = 1;
+       ^
+../src/helloworld.c:590:7: warning: unused variable 'missile2_x' [-Wunused-variable]
+   int missile2_x = ( ( 2047 <<12) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG5_OFFSET)) >> 12;
+       ^
+../src/helloworld.c:589:7: warning: unused variable 'missile2_y' [-Wunused-variable]
+   int missile2_y = ( (2047 << 1) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG5_OFFSET))>>1;
+       ^
+../src/helloworld.c:588:7: warning: unused variable 'missile2_fired' [-Wunused-variable]
+   int missile2_fired = ( 1 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG5_OFFSET));
+       ^
+../src/helloworld.c:585:7: warning: unused variable 'missile1_x' [-Wunused-variable]
+   int missile1_x = ( ( 2047 <<12) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET)) >> 12;
+       ^
+../src/helloworld.c:584:7: warning: unused variable 'missile1_y' [-Wunused-variable]
+   int missile1_y = ( (2047 << 1) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET))>>1;
+       ^
+../src/helloworld.c:583:7: warning: unused variable 'missile1_fired' [-Wunused-variable]
+   int missile1_fired = ( 1 & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG4_OFFSET));
+       ^
+../src/helloworld.c:574:7: warning: unused variable 'p2_xspeed' [-Wunused-variable]
+   int p2_xspeed = ((15 << 13) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET)) >> 13 ;
+       ^
+../src/helloworld.c:573:7: warning: unused variable 'p2_yspeed' [-Wunused-variable]
+   int p2_yspeed = ((15 << 9) & GAME_ENGINE_mReadReg(XPAR_GAME_ENGINE_0_S00_AXI_BASEADDR, GAME_ENGINE_S00_AXI_SLV_REG0_OFFSET) ) >>9;
+       ^
+'Finished building: ../src/helloworld.c'
+' '
+'Building target: testbench.elf'
+'Invoking: MicroBlaze gcc linker'
+mb-gcc -Wl,-T -Wl,../src/lscript.ld -L../../testbench_bsp/microblaze_0/lib -mlittle-endian -mcpu=v9.6 -mxl-soft-mul -Wl,--no-relax -o "testbench.elf"  ./src/helloworld.o ./src/platform.o   -Wl,--start-group,-lxil,-lgcc,-lc,--end-group
+'Finished building target: testbench.elf'
+' '
+'Invoking: MicroBlaze Print Size'
+mb-size testbench.elf  |tee "testbench.elf.size"
+   text	   data	    bss	    dec	    hex	filename
+  22944	    424	   3584	  26952	   6948	testbench.elf
+'Finished building: testbench.elf.size'
+' '
+
+15:46:16 Build Finished (took 879ms)
+

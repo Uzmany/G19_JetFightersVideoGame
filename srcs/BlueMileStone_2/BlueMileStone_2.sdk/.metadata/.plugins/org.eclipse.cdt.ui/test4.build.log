@@ -1,0 +1,17 @@
+15:28:31 **** Incremental Build of configuration Debug for project test4 ****
+make all 
+'Building file: ../src/helloworld.c'
+'Invoking: MicroBlaze gcc compiler'
+mb-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -I../../test4_bsp/microblaze_0/include -mlittle-endian -mcpu=v9.6 -mxl-soft-mul -Wl,--no-relax -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+In file included from ../src/helloworld.c:62:0:
+../src/helloworld.c: In function 'UartLiteRecvHandler':
+../../test4_bsp/microblaze_0/include/xuartlite_l.h:193:31: error: invalid operands to binary + (have 'XUartLite {aka struct <anonymous>}' and 'int')
+  XUartLite_In32((BaseAddress) + (RegOffset))
+                               ^
+../src/helloworld.c:354:22: note: in expansion of macro 'XUartLite_ReadReg'
+  unsigned char got = XUartLite_ReadReg((UartLiteInst), 0);
+                      ^
+make: *** [src/helloworld.o] Error 1
+
+15:28:31 Build Finished (took 265ms)
+
